@@ -1,0 +1,1000 @@
+openapi: 3.0.3
+info:
+  title: Система Управления Задачами - API
+  description: |
+    REST API для системы управления строительными объектами и задачами.
+    
+    ## Аутентификация
+    Большинство эндпоинтов требуют JWT токен в заголовке Authorization:
+    ```
+    Authorization: Bearer <token>
+    ```
+    
+    ## Роли пользователей
+    - **user** - базовая роль, может создавать и управлять своими заказами
+    - **manager** - может управлять заказами других пользователей
+    - **admin** - полный доступ ко всем функциям
+    
+    ## Коды ошибок
+    - `VALIDATION_ERROR` - ошибка валидации входных данных
+    - `UNAUTHORIZED` - требуется аутентификация
+    - `FORBIDDEN` - недостаточно прав
+    - `USER_NOT_FOUND` - пользователь не найден
+    - `ORDER_NOT_FOUND` - заказ не найден
+    - `USER_EXISTS` - пользователь уже существует
+    - `EMAIL_EXISTS` - email уже используется
+    - `INVALID_CREDENTIALS` - неверный email или пароль
+    - `RATE_LIMIT_EXCEEDED` - превышен лимит запросов
+    - `SERVICE_UNAVAILABLE` - сервис временно недоступен
+    - `INTERNAL_ERROR` - внутренняя ошибка сервера
+    
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@sistemakontrol.ru
+
+servers:
+  - url: http://localhost:8000
+    description: Development server
+  - url: http://test-api.sistemakontrol.ru
+    description: Testing server
+  - url: https://api.sistemakontrol.ru
+    description: Production server
+
+tags:
+  - name: Users
+    description: Управление пользователями
+  - name: Orders
+    description: Управление заказами
+  - name: Health
+    description: Проверка состояния системы
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Проверка состояния API Gateway
+      description: Возвращает статус шлюза и состояние circuit breakers
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /status:
+    get:
+      tags:
+        - Health
+      summary: Детальная информация о состоянии системы
+      description: Возвращает подробную информацию о шлюзе и сервисах
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+
+  /v1/users/register:
+    post:
+      tags:
+        - Users
+      summary: Регистрация нового пользователя
+      description: Создает нового пользователя с указанными данными
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: User already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/users/login:
+    post:
+      tags:
+        - Users
+      summary: Вход пользователя
+      description: Аутентификация пользователя и получение JWT токена
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/users/profile:
+    get:
+      tags:
+        - Users
+      summary: Получить профиль текущего пользователя
+      description: Возвращает данные профиля аутентифицированного пользователя
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - Users
+      summary: Обновить профиль текущего пользователя
+      description: Обновляет данные профиля аутентифицированного пользователя
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Email already in use
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/users:
+    get:
+      tags:
+        - Users
+      summary: Получить список пользователей (только для админов)
+      description: Возвращает список всех пользователей с пагинацией
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Номер страницы
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Количество элементов на странице
+        - in: query
+          name: role
+          schema:
+            type: string
+            enum: [user, manager, admin]
+          description: Фильтр по роли
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsersListResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - admin role required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/users/{userId}:
+    get:
+      tags:
+        - Users
+      summary: Получить пользователя по ID
+      description: Возвращает данные пользователя по его ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID пользователя
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/users/{userId}/details:
+    get:
+      tags:
+        - Users
+      summary: Получить детальную информацию о пользователе с заказами
+      description: Возвращает профиль пользователя и список его заказов
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID пользователя
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDetailsResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/orders:
+    get:
+      tags:
+        - Orders
+      summary: Получить список заказов текущего пользователя
+      description: Возвращает список заказов с пагинацией и сортировкой
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Номер страницы
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Количество элементов на странице
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [created, in_progress, completed, cancelled]
+          description: Фильтр по статусу
+        - in: query
+          name: sortBy
+          schema:
+            type: string
+            default: createdAt
+          description: Поле для сортировки
+        - in: query
+          name: sortOrder
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+          description: Направление сортировки
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrdersListResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - Orders
+      summary: Создать новый заказ
+      description: Создает новый заказ для текущего пользователя
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '201':
+          description: Order created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/orders/{orderId}:
+    get:
+      tags:
+        - Orders
+      summary: Получить заказ по ID
+      description: Возвращает детальную информацию о заказе
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: orderId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID заказа
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - not your order
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - Orders
+      summary: Обновить статус заказа
+      description: Изменяет статус заказа (требуются соответствующие права)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: orderId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID заказа
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOrderRequest'
+      responses:
+        '200':
+          description: Order updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Orders
+      summary: Отменить заказ
+      description: Отменяет заказ (устанавливает статус cancelled)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: orderId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID заказа
+      responses:
+        '200':
+          description: Order cancelled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderCancelResponse'
+        '400':
+          description: Invalid operation (order already completed/cancelled)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # ========== Schemas for Users ==========
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+        - name
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          minLength: 6
+          example: password123
+        name:
+          type: string
+          minLength: 2
+          example: Иван Иванов
+        roles:
+          type: array
+          items:
+            type: string
+            enum: [user, manager, admin]
+          default: [user]
+          example: [user]
+
+    RegisterResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+              example: 123e4567-e89b-12d3-a456-426614174000
+            email:
+              type: string
+              example: user@example.com
+            name:
+              type: string
+              example: Иван Иванов
+            roles:
+              type: array
+              items:
+                type: string
+              example: [user]
+            createdAt:
+              type: string
+              format: date-time
+              example: 2025-11-13T10:00:00.000Z
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          example: password123
+
+    LoginResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            token:
+              type: string
+              example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+            user:
+              $ref: '#/components/schemas/User'
+
+    UpdateProfileRequest:
+      type: object
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 2
+          example: Иван Петров
+        email:
+          type: string
+          format: email
+          example: newemail@example.com
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 123e4567-e89b-12d3-a456-426614174000
+        email:
+          type: string
+          example: user@example.com
+        name:
+          type: string
+          example: Иван Иванов
+        roles:
+          type: array
+          items:
+            type: string
+          example: [user]
+        createdAt:
+          type: string
+          format: date-time
+          example: 2025-11-13T10:00:00.000Z
+        updatedAt:
+          type: string
+          format: date-time
+          example: 2025-11-13T10:00:00.000Z
+
+    UserProfileResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/User'
+
+    UsersListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            users:
+              type: array
+              items:
+                $ref: '#/components/schemas/User'
+            pagination:
+              $ref: '#/components/schemas/Pagination'
+
+    UserDetailsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            user:
+              $ref: '#/components/schemas/User'
+            orders:
+              type: array
+              items:
+                $ref: '#/components/schemas/Order'
+            ordersSummary:
+              type: object
+              properties:
+                total:
+                  type: integer
+                  example: 15
+                byStatus:
+                  type: object
+                  additionalProperties:
+                    type: integer
+                  example:
+                    created: 2
+                    in_progress: 5
+                    completed: 7
+                    cancelled: 1
+
+    # ========== Schemas for Orders ==========
+    CreateOrderRequest:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required:
+              - productId
+              - productName
+              - quantity
+              - price
+            properties:
+              productId:
+                type: string
+                example: prod-123
+              productName:
+                type: string
+                example: Кирпич красный
+              quantity:
+                type: integer
+                minimum: 1
+                example: 1000
+              price:
+                type: number
+                minimum: 0
+                example: 15.50
+
+    UpdateOrderRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [created, in_progress, completed, cancelled]
+          example: in_progress
+
+    Order:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 123e4567-e89b-12d3-a456-426614174000
+        userId:
+          type: string
+          format: uuid
+          example: 123e4567-e89b-12d3-a456-426614174000
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              productId:
+                type: string
+                example: prod-123
+              productName:
+                type: string
+                example: Кирпич красный
+              quantity:
+                type: integer
+                example: 1000
+              price:
+                type: number
+                example: 15.50
+        status:
+          type: string
+          enum: [created, in_progress, completed, cancelled]
+          example: created
+        totalAmount:
+          type: number
+          example: 15500.00
+        createdAt:
+          type: string
+          format: date-time
+          example: 2025-11-13T10:00:00.000Z
+        updatedAt:
+          type: string
+          format: date-time
+          example: 2025-11-13T10:00:00.000Z
+
+    OrderResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/Order'
+
+    OrdersListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            orders:
+              type: array
+              items:
+                $ref: '#/components/schemas/Order'
+            pagination:
+              $ref: '#/components/schemas/Pagination'
+
+    OrderCancelResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            message:
+              type: string
+              example: Order cancelled successfully
+            order:
+              $ref: '#/components/schemas/Order'
+
+    # ========== Common Schemas ==========
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 10
+        total:
+          type: integer
+          example: 100
+        totalPages:
+          type: integer
+          example: 10
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: VALIDATION_ERROR
+            message:
+              type: string
+              example: Invalid input data
+
+    HealthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            status:
+              type: string
+              example: OK
+            service:
+              type: string
+              example: API Gateway
+            timestamp:
+              type: string
+              format: date-time
+            circuits:
+              type: object
+              properties:
+                users:
+                  type: object
+                  properties:
+                    state:
+                      type: string
+                      example: CLOSED
+                    stats:
+                      type: object
+                orders:
+                  type: object
+                  properties:
+                    state:
+                      type: string
+                      example: CLOSED
+                    stats:
+                      type: object
+
+    StatusResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            gateway:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: OK
+                uptime:
+                  type: number
+                  example: 12345.67
+                memory:
+                  type: object
+                timestamp:
+                  type: string
+                  format: date-time
+            services:
+              type: object
+              properties:
+                users:
+                  type: object
+                orders:
+                  type: object
