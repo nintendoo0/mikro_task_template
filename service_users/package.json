@@ -1,7 +1,7 @@
 {
   "name": "service-users",
   "version": "1.0.0",
-  "description": "Users microservice on Node.js",
+  "description": "Users microservice",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
@@ -11,20 +11,16 @@
     "test:coverage": "jest --coverage"
   },
   "dependencies": {
-    "bcryptjs": "^2.4.3",
-    "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "joi": "^17.11.0",
+    "pino": "^8.16.0",
+    "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2",
-    "nodemon": "^3.0.1",
-    "pino": "^8.17.2",
-    "pino-http": "^9.0.0",
-    "uuid": "^9.0.1"
+    "express-rate-limit": "^7.1.5"
   },
   "devDependencies": {
     "jest": "^29.7.0",
     "supertest": "^6.3.3",
-    "nodemon": "^3.0.1"
+    "nodemon": "^3.0.1",
+    "pino-pretty": "^10.2.3"
   }
 }

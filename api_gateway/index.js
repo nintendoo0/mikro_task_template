@@ -418,8 +418,14 @@ app.use((err, req, res, next) => {
 });
 
 // Start server
-app.listen(PORT, '0.0.0.0', () => {
-    logger.info({ port: PORT }, 'API Gateway started');
-});
+let server;
+if (process.env.NODE_ENV !== 'test') {
+    server = app.listen(PORT, () => {
+        logger.info({ port: PORT }, 'API Gateway started');
+    });
+}
+
+// Для тестов
+app.server = server;
 
 module.exports = app;

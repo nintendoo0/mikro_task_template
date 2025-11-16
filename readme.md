@@ -138,17 +138,89 @@ GET /status
 
 ## Тестирование
 
+### Вариант 1: Тесты в Docker (рекомендуется)
+
 ```bash
-# Запустить тесты для всех сервисов
-cd service_users && npm test
-cd service_orders && npm test
-cd api_gateway && npm test
+# Запустить тесты для конкретного сервиса
+docker-compose run --rm service_users npm test
+docker-compose run --rm service_orders npm test
+docker-compose run --rm api_gateway npm test
 
 # С покрытием кода
-npm run test:coverage
+docker-compose run --rm service_users npm run test:coverage
+docker-compose run --rm service_orders npm run test:coverage
+docker-compose run --rm api_gateway npm run test:coverage
+```
 
-# В режиме разработки
+### Вариант 2: Локальный запуск тестов
+
+```bash
+# Users Service
+cd service_users
+npm test
+
+# Orders Service
+cd service_orders
+npm test
+
+# API Gateway
+cd api_gateway
+npm test
+```
+
+### Вариант 3: Запуск всех тестов через корневой скрипт
+
+Создайте `package.json` в корне проекта:
+
+```json
+{
+  "name": "micro-task-template",
+  "scripts": {
+    "test": "npm run test:users && npm run test:orders && npm run test:gateway",
+    "test:users": "docker-compose run --rm service_users npm test",
+    "test:orders": "docker-compose run --rm service_orders npm test",
+    "test:gateway": "docker-compose run --rm api_gateway npm test"
+  }
+}
+```
+
+Затем запустите:
+
+```bash
+npm test
+```
+
+### Режим разработки (watch mode)
+
+```bash
+# Локально
+cd service_users
 npm run test:watch
+```
+
+### PowerShell скрипт для Windows
+
+Создайте `run-tests.ps1`:
+
+```powershell
+Write-Host "=== Запуск тестов ===" -ForegroundColor Cyan
+
+Write-Host "`n1. Users Service..." -ForegroundColor Yellow
+docker-compose run --rm service_users npm test
+
+Write-Host "`n2. Orders Service..." -ForegroundColor Yellow
+docker-compose run --rm service_orders npm test
+
+Write-Host "`n3. API Gateway..." -ForegroundColor Yellow
+docker-compose run --rm api_gateway npm test
+
+Write-Host "`n=== Завершено ===" -ForegroundColor Green
+```
+
+Запуск:
+
+```powershell
+.\run-tests.ps1
 ```
 
 ## Postman коллекция
@@ -220,6 +292,9 @@ micro-task-template/
 docker-compose logs -f api_gateway
 docker-compose logs -f service_users
 docker-compose logs -f service_orders
+
+# Логи конкретного контейнера
+docker-compose logs -f --tail=100 api_gateway
 ```
 
 ## Rate Limiting
@@ -246,6 +321,21 @@ docker-compose down -v
 docker-compose up --build
 ```
 
+### Тесты падают с ошибкой "Multiple configurations found"
+
+Убедитесь, что у вас только одна конфигурация Jest:
+- Либо секция `jest` в `package.json`
+- Либо файл `jest.config.js`
+
+Удалите дублирующую конфигурацию:
+
+```bash
+# Удалить jest.config.js (если есть секция в package.json)
+rm service_users/jest.config.js
+rm service_orders/jest.config.js
+rm service_gateway/jest.config.js
+```
+
 ### Ошибка 403 при установке WSL
 
 Запустите PowerShell от имени администратора:
@@ -263,6 +353,22 @@ netstat -ano | findstr :8000
 taskkill /PID <PID> /F
 
 # Или измените порты в docker-compose.yml
+```
+
+### Healthcheck показывает unhealthy
+
+Убедитесь, что в Dockerfile установлен `wget`:
+
+```dockerfile
+FROM node:18-alpine
+RUN apk add --no-cache wget
+```
+
+Затем пересоберите образы:
+
+```bash
+docker-compose build --no-cache
+docker-compose up -d
 ```
 
 ## Разработка

@@ -1,48 +1,54 @@
-version: '3.8'
-
 services:
-  api_gateway:
-    build: ./api_gateway
-    ports:
-      - "8000:8000"
-    environment:
-      - NODE_ENV=${NODE_ENV:-production}
-      - PORT=8000
-      - USERS_SERVICE_URL=http://service_users:8001
-      - ORDERS_SERVICE_URL=http://service_orders:8002
-      - JWT_SECRET=${JWT_SECRET:-your-secret-key-change-in-production}
-      - LOG_LEVEL=${LOG_LEVEL:-info}
-    networks:
-      - app-network
-    depends_on:
-      - service_users
-      - service_orders
-    restart: unless-stopped
-
   service_users:
-    build: ./service_users
+    build:
+      context: ./service_users
+    container_name: service_users-1
     environment:
-      - NODE_ENV=${NODE_ENV:-production}
       - PORT=8001
-      - JWT_SECRET=${JWT_SECRET:-your-secret-key-change-in-production}
-      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - NODE_ENV=production
+      - LOG_LEVEL=info
+    ports:
+      - "8001:8001"  # ← Убедитесь что эта строка есть
     networks:
       - app-network
     restart: unless-stopped
 
   service_orders:
-    build: ./service_orders
+    build:
+      context: ./service_orders
+    container_name: service_orders-1
     environment:
-      - NODE_ENV=${NODE_ENV:-production}
       - PORT=8002
-      - USERS_SERVICE_URL=http://service_users:8001
-      - JWT_SECRET=${JWT_SECRET:-your-secret-key-change-in-production}
-      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - NODE_ENV=production
+      - LOG_LEVEL=info
+      - USERS_SERVICE_URL=http://service_users-1:8001
+    ports:
+      - "8002:8002"  # ← Убедитесь что эта строка есть
     networks:
       - app-network
+    restart: unless-stopped
     depends_on:
       - service_users
+
+  api_gateway:
+    build:
+      context: ./api_gateway
+    container_name: api_gateway-1
+    environment:
+      - PORT=8000
+      - NODE_ENV=production
+      - LOG_LEVEL=info
+      - JWT_SECRET=${JWT_SECRET:-your-secret-key-change-in-production}
+      - USERS_SERVICE_URL=http://service_users-1:8001
+      - ORDERS_SERVICE_URL=http://service_orders-1:8002
+    ports:
+      - "8000:8000"  # ← Это работает
+    networks:
+      - app-network
     restart: unless-stopped
+    depends_on:
+      - service_users
+      - service_orders
 
 networks:
   app-network:

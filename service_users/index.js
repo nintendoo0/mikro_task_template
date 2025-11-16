@@ -401,9 +401,15 @@ app.get('/v1/users/:userId', (req, res) => {
     }
 });
 
-// Start server
-app.listen(PORT, '0.0.0.0', () => {
-    logger.info({ port: PORT }, 'Users service started');
-});
+// Экспортируем app для тестов
+let server;
+if (process.env.NODE_ENV !== 'test') {
+    server = app.listen(PORT, () => {
+        logger.info({ port: PORT }, 'Users service started');
+    });
+}
+
+// Для тестов
+app.server = server;
 
 module.exports = app;

@@ -1,26 +1,19 @@
 FROM node:18-alpine
 
-WORKDIR /app
+# Установить wget для healthcheck
+RUN apk add --no-cache wget
 
-# Copy package files
+WORKDIR /usr/src/app
+
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+RUN npm install --omit=dev --no-audit --no-fund
 
-# Copy application files
 COPY . .
-
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001 && \
-    chown -R nodejs:nodejs /app
-
-USER nodejs
 
 EXPOSE 8002
 
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:8002/orders/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+HEALTHCHECK --interval=10s --timeout=2s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8002/orders/health || exit 1
 
-CMD ["npm", "start"]
+CMD ["node", "index.js"]
